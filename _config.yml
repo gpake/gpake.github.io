@@ -1,0 +1,17 @@
+# Site settings
+title: 柳橙汁
+email: gpake@126.com
+description: > # sth
+  笨蛋柳橙汁的Hello~</br>
+  iOS开发者 / 迷路的喵
+# > # this means to ignore newlines until "baseurl:"
+  # Write an awesome description for your new site here. You can edit this
+#   line in _config.yml. It will appear in your document head meta (for
+#   Google search results) and in your feed.xml site description.
+baseurl: "" # the subpath of your site, e.g. /blog/
+url: "http://gpake.github.io" # the base hostname & protocol for your site
+# twitter_username: jekyllrb
+# github_username:  gpake
+
+# Build settings
+markdown: kramdown
