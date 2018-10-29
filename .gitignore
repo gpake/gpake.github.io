@@ -1,2 +1,17 @@
 _site
 .sass-cache
+
+# System files
+*.DS_Store
+
+# node files
+node_modules/
+package-lock.json
+
+# output files should be auto deployed to master branch
+public/
+db.json
+.deploy_git/
+
+# theme
+themes/next
