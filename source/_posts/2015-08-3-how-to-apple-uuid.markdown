@@ -5,6 +5,59 @@ date:   2015-08-3 23:58:24
 categories: iOS
 ---
 
+## TL;DR
+
+其实苹果以 C 函数的方式提供了 UUID 的方法
+
+```objective-c
+- (void)testUUID
+{
+    uuid_t u;
+    uuid_t ur;
+    uuid_t ut;
+    
+    uuid_generate(u);
+    uuid_generate_random(ur);
+    uuid_generate_time(ut);
+    
+    char a[16];
+    uuid_unparse(u, a);
+    char b[16];
+    uuid_unparse(ur, b);
+    char c[16];
+    uuid_unparse(ut, c);
+    
+//    printf("%s\n", a);
+//    printf("%s\n", b);
+    printf("%s\n", c);
+}
+
+- (NSString *)uuid{
+    // Create universally unique identifier (object)
+    CFUUIDRef uuidObject = CFUUIDCreate(kCFAllocatorDefault);
+    
+    // Get the string representation of CFUUID object.
+    NSString *uuidStr = (NSString *)CFBridgingRelease(CFUUIDCreateString(kCFAllocatorDefault, uuidObject));
+    
+    // If needed, here is how to get a representation in bytes, returned as a structure
+    // typedef struct {
+    //   UInt8 byte0;
+    //   UInt8 byte1;
+    //   ...
+    //   UInt8 byte15;
+    // } CFUUIDBytes;
+    //    CFUUIDBytes bytes = CFUUIDGetUUIDBytes(uuidObject);
+    
+    CFRelease(uuidObject);
+    
+    return uuidStr;
+}
+```
+
+<!-- more -->
+
+## 测试代码：
+
 ```objectivec
 //
 //  ViewController.m

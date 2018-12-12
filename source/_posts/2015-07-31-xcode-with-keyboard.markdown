@@ -12,7 +12,9 @@ categories: Xcode
 
 好在Xcode为大多数操作都预留了快捷键。下面我会介绍一下我平常是怎么用键盘与Xcode`快乐地玩耍`的。
 
-###Mac 键盘符号
+<!-- more -->
+
+### Mac 键盘符号
 首先来看一下这些神奇的符号。[来自这里](http://www.raizlabs.com/dev/2015/03/spicing-up-xcode/)
 
 ⌘ Command
