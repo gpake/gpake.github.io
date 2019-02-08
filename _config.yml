@@ -79,6 +79,6 @@ theme: next
 ## Docs: https://hexo.io/docs/deployment.html
 deploy:
   type: git
-  repo: https://github.com/gpake/gpake.github.io
-  # branch: [branch]
+  repo: git@github.com:gpake/gpake.github.io.git # https://github.com/gpake/gpake.github.io
+  branch: master
   # message: [message]
