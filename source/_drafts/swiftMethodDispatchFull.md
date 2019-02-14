@@ -148,7 +148,7 @@ proto.extensionMethod() // -> “In Protocol”
 
 
 
-从 SIL 的角度来说，如果不写在 protocol 声明中，witness table 就是空的，所以他无法 witness 实现协议的对象，只能按照静态派发执行了。
+从 SIL 的角度来说，如果不写在 protocol 声明中，witness table 无法把协议和类的函数产生映射关系，所以他无法 witness 实现协议的对象，只能按照默认实现进行直接派发执行了。
 
 
 
