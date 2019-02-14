@@ -13,14 +13,14 @@ tags:
 
 <!-- more -->
 
-# Dispatch 是什么
+## Dispatch 是什么
 
 > Dispatch 派发，指的是**语言底层**找到用户想要调用的方法，并执行调用过程的动作。
 > Call 调用，指的是语言在**高级层面**，指示一个函数进行相关命令的行为。
 
 对于一个编译型语言来说，一般有三种方式可以派发到方法：静态派发，基于 Table 的派发，消息派发。
 
-Java 默认是使用 table 方式派发的，你可以使用 final 关键字来强制动态派发。
+Java 默认是使用 Table 方式派发的，你可以使用 final 关键字来强制动态派发。
 
 C++ 默认是静态派发的，你可以使用 virtual 关键字来启用 Table 派发。
 
@@ -30,19 +30,21 @@ Swift 则巧妙的使用了这三种方法，分别应对不同的情况。
 
 
 
-派发的方法虽然不同，但主要是性能和灵活性的不同妥协。
+### Dispatch 的种类
 
-直接派发 / 静态派发
+> 派发的方法虽然不同，但主要是性能和灵活性的不同妥协。
 
-最快。不只是因为他的汇编命令少，还因为他可以应用很多黑魔法，比如 inline 优化等。
+#### Direct Dispatch 直接派发
 
-不过这种方式最局限，因为不够动态而无法支持子类。
+直接派发（静态派发）最快。不只是因为他的汇编命令少，还因为他可以应用很多编译器黑魔法，比如 inline 优化等。
+
+不过这种方式局限性最大，因为不够动态而无法支持子类。
 
 
 
-Table 派发
+#### Table 派发
 
-编译语言最常用的方式，Table 一般是用函数地址的数组来存储每个类的声明。大多数语言都把这个称作 V-Table，不过 Swift 中还有一个术语叫做 Witness Table。
+基于 Table 的派发机制是编译语言最常用的方式，Table 一般是用函数地址的数组来存储每个类的声明。大多数语言包括 Swift 都把这个称作 VTable，不过 Swift 中还有一个术语叫做 Witness Table 是服务于 Protocol 的，下面会提到。
 
 每个子类都会有自己的 VTable 副本，子类中 override 的方法指针也会被替换成新的，子类新添加的方法则会被添加在 Table 的尾部。程序会在运行时确定每个函数具体的地址。
 
@@ -54,7 +56,7 @@ Table 派发
 
 
 
-Message 派发
+#### Message 派发
 
 Message 派发是最灵活的派发方式。他是 Cocoa 的基石，也是 KVO，UIAppearance，Core Data 的核心。
 
@@ -66,26 +68,24 @@ Message 派发是最灵活的派发方式。他是 Cocoa 的基石，也是 KVO�
 
 
 
-Swift 用什么？可以从下面四个方面来说。
+## Swift Dispatch 的方式
+
+Swift 用什么派发方式？可以从下面四个方面来说：
 
 1. 声明位置
 2. 引用类型
-3. 特定行为
-4. 可见性优化
+3. 关键字的影响
+4. 可见性的影响
 
 在往下说之前，先说一个前提：swift 从来没说过他具体是怎么做派发的。唯一可以确定的是，用 `dynamic` 的时候，会通过 OC 的 runtime 来进行消息派发。
 
 
 
------ 声明所在位置的影响
-
-
+#### 声明所在位置的影响
 
 我们可以在 extension 中声明一个方法，也可以在原始对象中声明。他们是有区别的
 
 extension 中会直接使用静态派发
-
-
 
 |               | 原始声明      | extension |
 | ------------- | ------------- | --------- |
@@ -94,53 +94,35 @@ extension 中会直接使用静态派发
 | Class         | V-Table       | Static    |
 | NSObject 子类 | V-Table       | Message   |
 
------ 引用类型的影响 
 
 
+#### 引用类型的影响 
 
+```swift
 protocol MyProtocol { 
-
 } 
 
-struct MyStruct: MyProtocol { 
+struct MyStruct: MyProtocol {
+}
 
-} 
+extension MyStruct {
+    func extensionMethod() {
+        print("In Struct")
+    }
+}
 
-extension MyStruct { 
+extension MyProtocol {
+    func extensionMethod() {
+        print("In Protocol")
+    }
+}
 
-​    func extensionMethod() { 
+let myStruct = MyStruct()
+let proto: MyProtocol = myStruct
 
-​        print("In Struct") 
-
-​    } 
-
-} 
-
-extension MyProtocol { 
-
-​    func extensionMethod() { 
-
-​        print("In Protocol") 
-
-​    } 
-
-} 
-
-
-
-
-
-let myStruct = MyStruct() 
-
-let proto: MyProtocol = myStruct 
-
-
-
-
-
-myStruct.extensionMethod() // -> “In Struct” 
-
-proto.extensionMethod() // -> “In Protocol” 
+myStruct.extensionMethod() // -> “In Struct”
+proto.extensionMethod() // -> “In Protocol”
+```
 
 调用 proto.extensionMethod() 不会走 struct 的实现，只有对 protocol 可见的方法才会被调用。
 
@@ -152,11 +134,9 @@ proto.extensionMethod() // -> “In Protocol”
 
 
 
----------特定情况
+#### 关键字的影响
 
-
-
-final
+##### final
 
 使用了 final 的，都用静态派发，因为 final 意味着完全没有动态性。final 用于类型，或是 function，都会造成这样的情况。
 
@@ -164,7 +144,7 @@ final
 
 
 
-dynamic
+##### dynamic
 
 使用了 dynamic 的 class （只有 class 可以 dynamic），会开启 message 模式，让 OC runtime 可以调用。
 
@@ -174,7 +154,7 @@ dynamic
 
 
 
-@objc / @nonobjc 
+##### @objc / @nonobjc 
 
 @objc / @nonobjc 控制方法对于 objc 的可见性。但是不会改变 swift 中的函数如何被派发。 
 
@@ -188,7 +168,7 @@ dynamic
 
 
 
-
+##### @inline
 
 @inline 可以告诉编译器去优化直接派发的性能。 
 
@@ -206,11 +186,13 @@ inline 可以选择的参数有两个  `never` 和 `__always`
 
 2，如果你的函数很小，你希望他可以快一点，就可以使用 @inline(__always)，不过其实编译器也会帮你做这样的事情，所以你这么做也基本上不会让他变得更快 
 
+> 有趣的是，如果你用 `dynamic @inline(__always) func dynamicOrDirect() {}` 依然会得到一个 message 派发的函数。
+>
+> 不过，这个没什么意义，应该是未定义的行为，忽略就好。
 
 
-有趣的是，如果你用 `dynamic @inline(__always) func dynamicOrDirect() {}` 依然会得到一个 message 派发的函数。
 
-不过，这个没什么意义，应该是未定义的行为，忽略就好。
+##### 总结
 
 |         | class                                                  | Value Type        | Protocol          | extension           | func                                      | 备注        |
 | ------- | ------------------------------------------------------ | ----------------- | ----------------- | ------------------- | ----------------------------------------- | ----------- |
@@ -220,62 +202,39 @@ inline 可以选择的参数有两个  `never` 和 `__always`
 
 
 
+### 方法可见性的影响
 
+Swift 编译器会尽可能的帮你优化派发，比如：你的方法没有被继承，那他就会注意到这个，并用尝试使用直接派发来优化性能。
 
-代码的优化 
+虽然大多数时候这种机制很有效，不过偶尔也会有些问题： 
 
-Swift 编译器会尽可能的帮你优化派发，比如：你的方法没有被继承，那他就会注意到这个，并用尝试使用直接派发来优化性能。虽然大多数时候这种机制很有效，不过偶尔也会有些问题： 
+#### KVO
 
-func baseFunc() { 
-
-​    navigationItem.rightBarButtonItem = UIBarButtonItem( 
-
-​      title: "Sign In", style: .plain, target: nil, 
-
-​      action: #selector(ViewController.signInAction) 
-
-​    ) 
-
-  } 
-
-  private func signInAction() {} 
-
-会报错：Argument of '#selector' refers to instance method 'signInAction()' that is not exposed to Objective-C
-
-This makes sense when you remember that Swift is optimizing the method to use direct dispatch.
-
-加上@objc 就可以，让 objc runtime 可以捕捉到这个方法.
-
-这种报错也会在依赖 NSInvocation 的 UIAppearance 对象中出现。
+值得注意的是 KVO，被观察的属性也必须被声明为 `dynamic`，否则 setter 会走直接派发，无法触发变化。
 
 
 
-另外值得注意的就是 KVO，被观察的属性也必须被声明为 dynamic，否则 setter 会走直接派发，无法触发变化。
+> https://developer.apple.com/swift/blog/?id=27> 这篇文章里有更多关于优化的细节。
 
 
 
-<https://developer.apple.com/swift/blog/?id=27> 这篇文章里有更多关于优化的细节。
+## 关于派发方式的总结： 
+
+| 对象\派发方式     | StaticStatic        | VTableVTable | Witness TableWitness Table | MessageMessage           |
+| ----------------- | ------------------- | ------------ | -------------------------- | ------------------------ |
+| NSObject subclass | final<br>extension  | default      | : protocol                 | dynamic                  |
+| Swift Class       | final<br/>extension | default      | : protocol                 | dynamic                  |
+| Protocol          | extension           | default      | N/A                        | : NSObjectProtocol @objc |
+| Value Type        | default             | N/A          | : protocol                 | N/A                      |
 
 
 
-关于派发方式的总结： 
+## 性能建议； 
 
-|             | Static                 | VTable  | Witness Table | Message                  |
-| ----------- | ---------------------- | ------- | ------------- | ------------------------ |
-| NSObject    | @nonobjcfinalextension | default | : protocol    | dynamic                  |
-| Swift Class | extension final        | default | : protocol    | dynamic                  |
-| Protocol    | extension              | default | NA            | : NSObjectProtocol @objc |
-| Value Type  | default                | NA      | : protocol    | NA                       |
+使用 `final`， `private` ，Whole Module Optimization 
 
-性能建议； 
+`final` 可以标记在一个 class, 属性或方法之前，表示这个对象无法被继承 / 覆盖。编译器会因此把关于这个对象的派发改变为直接派发。
 
-使用 final, private, Whole Module Optimization 
+`private` 可以标记一个对象的可见性，因为都在同一个文件内，所以编译器可以确定这个对象的继承情况，从而推断出你的方法可以被标记为 `final`。如果没有继承，
 
-
-
-final 可以标记在一个 class, 属性，方法之前，表示这个对象无法被继承 / 覆盖。编译器会因此把关于这个对象的派发改变为直接派发。
-
-
-
-private 可以标记一个对象的可见性，因为都在同一个文件内，所以编译器可以确定这个对象的继承情况。如果没有继承，
-
+默认的方法可见性是 `internal`，这就代表着，如果你启用 `Whole Module Optimization` ，编译器就可以知道你的  `internal` 方法是否有被继承，如果没有的话，他们也会被优化为直接派发。
