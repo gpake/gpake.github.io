@@ -178,12 +178,10 @@ dynamic
 
 @objc / @nonobjc 控制方法对于 objc 的可见性。但是不会改变 swift 中的函数如何被派发。 
 
-@nonobjc 可以禁止函数使用 message 派发 
-
-（和 final 在汇编上看起来类似，偏向于使用 final 
+> @nonobjc 可以禁止函数使用 message 派发 （和 final 在汇编上看起来类似，偏向于使用 final)
+> // 并不会这样，@nonobjc 依然是使用 Table 调用，但是 @nonobjc 之后无法使用 dynamic，会提示 `error: a declaration cannot be both '@nonobjc' and 'dynamic'`
 
 @objc 的原理是生成两个函数引用，一个给 swift 调用，一个给 objc 调用 
-
 
 
 @objc final func aFunc() {} 会让消息使用直接派发，不过依然会 export 给 objc， 
