@@ -1,15 +1,22 @@
 ---
-title: Swift 底层是怎么调用方法的
+title: Swift 底层是怎么调度方法的
 date: 2019-02-11 22:34:27
-tags: swift dispatch
+tags: swift method dispatch
 ---
 
 经过多年的发展和前辈们的科普，我们都对 Objective-C 的 Method Lookup 机制了然于胸。
 但是 Swift 是怎么进行方法派发 ( dispatch ) 的，倒是一个不太被常问到的一个问题。
+不妨一起来看一看。
 
 ## TL;DR
 
-关键字对于派发方法的影响
+怎么让你的代码在运行时更快？
+
+- 尽量使用 `值类型`，`final`
+- 用 `private` 等缩小访问权限，开启 `Whole Module Optimization `
+- 给协议添加默认实现
+
+下表为 Swift 对象的派发方式与关键字的关系。
 
 | 对象\派发方式 | Static              | VTable   | Witness Table | Message                      |
 | ------------- | ------------------- | -------- | ------------- | ---------------------------- |
@@ -17,8 +24,6 @@ tags: swift dispatch
 | Swift Class   | final<br/>extension | 默认行为 | : protocol    | dynamic                      |
 | NSObject      | final<br/>extension | 默认行为 | : protocol    | dynamic                      |
 | Protocol      | extension           | 默认行为 | N/A           | : NSObjectProtocol<br/>@objc |
-
-表格中间为可以产生此影响的关键字。
 
 <!-- more -->
 
