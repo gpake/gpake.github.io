@@ -46,7 +46,7 @@ Table 派发
 
 每个子类都会有自己的 VTable 副本，子类中 override 的方法指针也会被替换成新的，子类新添加的方法则会被添加在 Table 的尾部。程序会在运行时确定每个函数具体的地址。
 
-表的查找非常简单，容易实现，而且性能可以预测，不过还是比直接派发更慢一些。从字节码的角度来说，这种方法多了两步查找和一部跳转，这些都是开销。而且，这种方法没法使用一些黑魔法来优化。
+表的查找就实现而言非常简单，而且性能可以预测，不过还是比直接派发更慢一些。从字节码的角度来说，这种方法多了两步查找和一部跳转，这些都是开销。而且，这种方法没法使用一些黑魔法来优化。
 
 
 
@@ -97,50 +97,31 @@ extension 中会直接使用静态派发
 ----- 引用类型的影响 
 
 
-
+```swift
 protocol MyProtocol { 
-
 } 
 
 struct MyStruct: MyProtocol { 
-
 } 
 
 extension MyStruct { 
-
-​    func extensionMethod() { 
-
-​        print("In Struct") 
-
-​    } 
-
+    func extensionMethod() { 
+        print("In Struct") 
+    } 
 } 
 
 extension MyProtocol { 
-
-​    func extensionMethod() { 
-
-​        print("In Protocol") 
-
-​    } 
-
-} 
-
-
-
-
+    func extensionMethod() { 
+        print("In Protocol") 
+    } 
+}
 
 let myStruct = MyStruct() 
-
 let proto: MyProtocol = myStruct 
 
-
-
-
-
 myStruct.extensionMethod() // -> “In Struct” 
-
 proto.extensionMethod() // -> “In Protocol” 
+```
 
 调用 proto.extensionMethod() 不会走 struct 的实现，只有对 protocol 可见的方法才会被调用。
 
@@ -152,11 +133,11 @@ proto.extensionMethod() // -> “In Protocol”
 
 
 
----------特定情况
+### ---------特定情况
 
 
 
-final
+#### final
 
 使用了 final 的，都用静态派发，因为 final 意味着完全没有动态性。final 用于类型，或是 function，都会造成这样的情况。
 
@@ -164,7 +145,7 @@ final
 
 
 
-dynamic
+#### dynamic
 
 使用了 dynamic 的 class （只有 class 可以 dynamic），会开启 message 模式，让 OC runtime 可以调用。
 
@@ -174,7 +155,7 @@ dynamic
 
 
 
-@objc / @nonobjc 
+#### @objc / @nonobjc 
 
 @objc / @nonobjc 控制方法对于 objc 的可见性。但是不会改变 swift 中的函数如何被派发。 
 
@@ -185,6 +166,8 @@ dynamic
 @objc 的原理是生成两个函数引用，一个给 swift 调用，一个给 objc 调用 
 
 
+
+@objc final
 
 @objc final func aFunc() {} 会让消息使用直接派发，不过依然会 export 给 objc， 
 
@@ -214,11 +197,11 @@ inline 可以选择的参数有两个  `never` 和 `__always`
 
 不过，这个没什么意义，应该是未定义的行为，忽略就好。
 
-|         | class                                                  | Value Type        | Protocol          | extension           | func                                      | 备注        |
-| ------- | ------------------------------------------------------ | ----------------- | ----------------- | ------------------- | ----------------------------------------- | ----------- |
-| final   | Static                                                 | Static            | Static            | Static              | Static                                    | @objc final |
-| dynamic | only class member                                      | only class member | only class member | 只有 class 的才可以 | Message 必须 @import Foundation必须 @objc |             |
-| inline  | 根据属性决定直接派发的编译器优化行为，不影响派发原理。 |                   |                   |                     |                                           |             |
+|         | class                                                  | Value Type        | Protocol          | extension           | func                                             | 备注        |
+| ------- | ------------------------------------------------------ | ----------------- | ----------------- | ------------------- | ------------------------------------------------ | ----------- |
+| final   | Static                                                 | Static            | Static            | Static              | Static                                           | @objc final |
+| dynamic | only class member                                      | only class member | only class member | 只有 class 的才可以 | Message<br>必须 @import Foundation<br>必须 @objc |             |
+| inline  | 根据属性决定直接派发的编译器优化行为，不影响派发原理。 |                   |                   |                     |                                                  |             |
 
 
 
@@ -279,5 +262,5 @@ final 可以标记在一个 class, 属性，方法之前，表示这个对象无
 
 
 
-private 可以标记一个对象的可见性，因为都在同一个文件内，所以编译器可以确定这个对象的继承情况。如果没有继承，
+private 可以标记一个对象的可见性，因为都在同一个文件内，所以编译器可以确定这个对象的继承情况。如果没有继承
 
