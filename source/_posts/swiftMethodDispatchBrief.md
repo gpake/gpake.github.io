@@ -25,6 +25,8 @@ tags: swift method dispatch
 | NSObject      | final<br/>extension | 默认行为 | : protocol    | dynamic                      |
 | Protocol      | extension           | 默认行为 | N/A           | : NSObjectProtocol<br/>@objc |
 
+注意：Witness Table 仅在调用对象类型为 Protocol 类型时，才会被引用。
+
 <!-- more -->
 
 ## Swift 的派发类别观察
@@ -45,7 +47,7 @@ tags: swift method dispatch
 
 #### ![https://zhaoxinyu.me/2018-04-08-method-dispatch-in-swift-1/](/images/image-20190217223612681.png)
 
-可以看到，除了原始声明，会产生影响的就是 `@objc` 和 `final` 这两个关键字了。
+可以看到，除了原始声明，会产生影响的就是 `@objc` , `dynamic` 和 `final` 这三个关键字了。
 
 #### Value Type
 
@@ -81,6 +83,8 @@ Protocol 是一个比较特殊的情况，不同于 Objective-C，Swift 在对�
 
 ![https://zhaoxinyu.me/2018-04-08-method-dispatch-in-swift-1/](/images/image-20190217232516303.png)
 
+> 对于 protocol 的默认实现，使用的是 static 方式。
+
 对于实现了 Protocol 的对象，无论是值类型还是引用类型：
 
 - 向对象自己的实例调用，效果和没有 Protocol 的状态一样；
@@ -94,7 +98,7 @@ Protocol 是一个比较特殊的情况，不同于 Objective-C，Swift 在对�
 
 ## Swift 派发原理
 
-## Dispatch 是什么
+### Dispatch 是什么
 
 > Dispatch 派发，指的是**语言底层**找到用户想要调用的方法，并执行调用过程的动作。
 > Call 调用，指的是语言在**高级层面**，指示一个函数进行相关命令的行为。
@@ -166,12 +170,12 @@ Swift 用什么派发方式？可以从下面四个方面来说：
 
 extension 中会直接使用静态派发
 
-|               | 原始声明      | extension |
-| ------------- | ------------- | --------- |
-| Value Type    | Static        | Static    |
-| Protocol      | Witness Table | Static    |
-| Class         | V-Table       | Static    |
-| NSObject 子类 | V-Table       | Message   |
+|               | 原始声明 | extension       |
+| ------------- | -------- | --------------- |
+| Value Type    | Static   | Static          |
+| Protocol      | N/A      | Static          |
+| Class         | V-Table  | Static          |
+| NSObject 子类 | V-Table  | Message (@objc) |
 
 
 
@@ -271,11 +275,12 @@ inline 可以选择的参数有两个  `never` 和 `__always`
 
 ##### 关键字总结
 
-|         | class                                                  | Value Type        | Protocol          | extension           | func                                      | 备注        |
-| ------- | ------------------------------------------------------ | ----------------- | ----------------- | ------------------- | ----------------------------------------- | ----------- |
-| final   | Static                                                 | Static            | Static            | Static              | Static                                    | @objc final |
-| dynamic | only class member                                      | only class member | only class member | 只有 class 的才可以 | Message 必须 @import Foundation必须 @objc |             |
-| inline  | 根据属性决定直接派发的编译器优化行为，不影响派发原理。 |                   |                   |                     |                                           |             |
+|         | class                                                  | Value Type | Protocol                                              | extension           | func                                             | 备注        |
+| ------- | ------------------------------------------------------ | ---------- | ----------------------------------------------------- | ------------------- | ------------------------------------------------ | ----------- |
+| final   | Static                                                 | Static     | Static                                                | Static              | Static                                           | @objc final |
+| dynamic | N/A                                                    | N/A        | Message<br/>必须 import Foundation
+必须 @objc protocol | 只有 class 的才可以 | Message<br>必须 import Foundation<br/>必须 @objc |             |
+| inline  | 根据属性决定直接派发的编译器优化行为，不影响派发原理。 |            |                                                       |                     |                                                  |             |
 
 
 
