@@ -106,20 +106,20 @@
 
 
 
-  <meta name="description" content="经过多年的发展和前辈们的科普，我们都对 Objective-C 的 Method Lookup 机制了然于胸。但是 Swift 是怎么进行方法派发 ( dispatch ) 的，倒是一个不太被常问到的一个问题。不妨一起来看一看。 TL;DR怎么让你的代码在运行时更快？  尽量使用 值类型，final 用 private 等缩小访问权限，开启 Whole Module Optimization 给协">
+  <meta name="description" content="经过多年的发展和前辈们的科普，我们都对 Objective-C 的 Method Lookup 机制了然于胸。但是 Swift 是怎么进行方法派发 ( dispatch ) 的，倒是一个不太被常问到的一个问题。不妨一起来看一看。 TL;DR怎么让你的代码在运行时更快？  全文针对 Swift 4.2   尽量使用 值类型，final 用 private 等缩小访问权限，开启 Whole Modul">
 <meta name="keywords" content="swift method dispatch">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Swift 底层是怎么调度方法的">
 <meta property="og:url" content="http://gpake.github.io/2019/02/11/swiftMethodDispatchBrief/index.html">
 <meta property="og:site_name" content="Gpake&#39;s">
-<meta property="og:description" content="经过多年的发展和前辈们的科普，我们都对 Objective-C 的 Method Lookup 机制了然于胸。但是 Swift 是怎么进行方法派发 ( dispatch ) 的，倒是一个不太被常问到的一个问题。不妨一起来看一看。 TL;DR怎么让你的代码在运行时更快？  尽量使用 值类型，final 用 private 等缩小访问权限，开启 Whole Module Optimization 给协">
+<meta property="og:description" content="经过多年的发展和前辈们的科普，我们都对 Objective-C 的 Method Lookup 机制了然于胸。但是 Swift 是怎么进行方法派发 ( dispatch ) 的，倒是一个不太被常问到的一个问题。不妨一起来看一看。 TL;DR怎么让你的代码在运行时更快？  全文针对 Swift 4.2   尽量使用 值类型，final 用 private 等缩小访问权限，开启 Whole Modul">
 <meta property="og:locale" content="default">
 <meta property="og:image" content="http://gpake.github.io/images/image-20190217223612681.png">
 <meta property="og:image" content="http://gpake.github.io/images/image-20190217232516303.png">
-<meta property="og:updated_time" content="2019-02-19T06:11:10.067Z">
+<meta property="og:updated_time" content="2019-02-21T15:03:30.117Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Swift 底层是怎么调度方法的">
-<meta name="twitter:description" content="经过多年的发展和前辈们的科普，我们都对 Objective-C 的 Method Lookup 机制了然于胸。但是 Swift 是怎么进行方法派发 ( dispatch ) 的，倒是一个不太被常问到的一个问题。不妨一起来看一看。 TL;DR怎么让你的代码在运行时更快？  尽量使用 值类型，final 用 private 等缩小访问权限，开启 Whole Module Optimization 给协">
+<meta name="twitter:description" content="经过多年的发展和前辈们的科普，我们都对 Objective-C 的 Method Lookup 机制了然于胸。但是 Swift 是怎么进行方法派发 ( dispatch ) 的，倒是一个不太被常问到的一个问题。不妨一起来看一看。 TL;DR怎么让你的代码在运行时更快？  全文针对 Swift 4.2   尽量使用 值类型，final 用 private 等缩小访问权限，开启 Whole Modul">
 <meta name="twitter:image" content="http://gpake.github.io/images/image-20190217223612681.png">
 
 
@@ -388,7 +388,7 @@
                 
                   <span class="post-meta-item-text">Edited on</span>
                 
-                <time title="Modified: 2019-02-19 14:11:10" itemprop="dateModified" datetime="2019-02-19T14:11:10+08:00">2019-02-19</time>
+                <time title="Modified: 2019-02-21 23:03:30" itemprop="dateModified" datetime="2019-02-21T23:03:30+08:00">2019-02-21</time>
               
             
           </span>
@@ -423,6 +423,9 @@
       
         <p>经过多年的发展和前辈们的科普，我们都对 Objective-C 的 Method Lookup 机制了然于胸。<br>但是 Swift 是怎么进行方法派发 ( dispatch ) 的，倒是一个不太被常问到的一个问题。<br>不妨一起来看一看。</p>
 <h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><p>怎么让你的代码在运行时更快？</p>
+<blockquote>
+<p>全文针对 <strong>Swift 4.2</strong></p>
+</blockquote>
 <ul>
 <li>尽量使用 <code>值类型</code>，<code>final</code></li>
 <li>用 <code>private</code> 等缩小访问权限，开启 <code>Whole Module Optimization</code></li>
