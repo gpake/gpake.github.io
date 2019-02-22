@@ -12,6 +12,8 @@ tags: swift method dispatch
 
 怎么让你的代码在运行时更快？
 
+> 全文针对 **Swift 4.2**
+
 - 尽量使用 `值类型`，`final`
 - 用 `private` 等缩小访问权限，开启 `Whole Module Optimization `
 - 给协议添加默认实现
