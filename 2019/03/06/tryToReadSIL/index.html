@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<html class="theme-next mist" lang>
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.4.2" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.4.2">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.4.2">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.4.2">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.4.2" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '6.4.2',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":false,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="这是 Swift 摸鱼系列的第二篇 上篇讲的是 Swift 底层是怎么调度方法的 这篇我们说一下探究 Swift 运行过程中最常用的工具之一：Swift Intermediate Language (SIL) Swift Intermediate Language (SIL)平常我们写 Swift 不用关心编译器怎么工作，了解底层逻辑可以帮你更好的理解语言本身的思想。 SIL 是一个专门为 Swi">
+<meta property="og:type" content="article">
+<meta property="og:title" content="试着读一下 SIL">
+<meta property="og:url" content="http://gpake.github.io/2019/03/06/tryToReadSIL/index.html">
+<meta property="og:site_name" content="Gpake&#39;s">
+<meta property="og:description" content="这是 Swift 摸鱼系列的第二篇 上篇讲的是 Swift 底层是怎么调度方法的 这篇我们说一下探究 Swift 运行过程中最常用的工具之一：Swift Intermediate Language (SIL) Swift Intermediate Language (SIL)平常我们写 Swift 不用关心编译器怎么工作，了解底层逻辑可以帮你更好的理解语言本身的思想。 SIL 是一个专门为 Swi">
+<meta property="og:locale" content="default">
+<meta property="og:updated_time" content="2019-03-06T12:26:27.320Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="试着读一下 SIL">
+<meta name="twitter:description" content="这是 Swift 摸鱼系列的第二篇 上篇讲的是 Swift 底层是怎么调度方法的 这篇我们说一下探究 Swift 运行过程中最常用的工具之一：Swift Intermediate Language (SIL) Swift Intermediate Language (SIL)平常我们写 Swift 不用关心编译器怎么工作，了解底层逻辑可以帮你更好的理解语言本身的思想。 SIL 是一个专门为 Swi">
+
+
+
+
+
+
+  <link rel="canonical" href="http://gpake.github.io/2019/03/06/tryToReadSIL/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>试着读一下 SIL | Gpake's</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="default">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Gpake's</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="Toggle navigation bar">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+    <a href="/about/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-user"></i> <br>About</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+    <a href="/tags/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>Tags</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+    <a href="/categories/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-th"></i> <br>Categories</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+    <a href="/archives/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>Archives</a>
+  </li>
+
+      
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>Search</a>
+        </li>
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="Searching..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://gpake.github.io/2019/03/06/tryToReadSIL/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Gpake">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Gpake's">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">试着读一下 SIL
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+
+              
+                
+              
+
+              <time title="Created: 2019-03-06 20:20:13 / Modified: 20:26:27" itemprop="dateCreated datePublished" datetime="2019-03-06T20:20:13+08:00">2019-03-06</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>这是 Swift 摸鱼系列的第二篇</p>
+<p>上篇讲的是 <a href="/2019/02/11/swiftMethodDispatchBrief/">Swift 底层是怎么调度方法的</a></p>
+<p>这篇我们说一下探究 Swift 运行过程中最常用的工具之一：Swift Intermediate Language (SIL)</p>
+<h1 id="Swift-Intermediate-Language-SIL"><a href="#Swift-Intermediate-Language-SIL" class="headerlink" title="Swift Intermediate Language (SIL)"></a>Swift Intermediate Language (SIL)</h1><p>平常我们写 Swift 不用关心编译器怎么工作，了解底层逻辑可以帮你更好的理解语言本身的思想。</p>
+<p>SIL 是一个专门为 Swift 定制，为了进行后续优化的语言。</p>
+<p>这里我们不过多的介绍文档上的内容，而是关注它在解析中反映出 Swift 的底层逻辑。</p>
+<a id="more"></a>
+<h2 id="例子"><a href="#例子" class="headerlink" title="例子"></a>例子</h2><p>下面那一段例子来简单解释一下 SIL，</p>
+<p>其实 SIL 也是一种语言，语法结构清晰，可以将我们使用高级语言被隐藏的很多细节都重新渲染出来，帮助我们理解语言实现的逻辑。</p>
+<p>直接上代码：</p>
+<p>对于一个简单的 class 声明和调用</p>
+<figure class="highlight swift"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">TestClass</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">func</span> <span class="title">testFunc</span><span class="params">()</span></span> &#123;</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">"ahaha"</span>)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">TestClass</span>().testFunc()</span><br></pre></td></tr></table></figure>
+<p>使用</p>
+<p><code>swiftc -emit-silgen -Onone test.swift &gt; test.swift.sil</code></p>
+<p>可以生成 SIL，文件会有大概 200 行。<a href="https://gist.github.com/gpake/a6028f5b1d0a009ef47a0a185ae65475" target="_blank" rel="noopener">SIL 文件点这里</a></p>
+<h2 id="例子解析"><a href="#例子解析" class="headerlink" title="例子解析"></a>例子解析</h2><p>接下来我们一段一段分析：</p>
+<h3 id="头部声明"><a href="#头部声明" class="headerlink" title="头部声明"></a>头部声明</h3><figure class="highlight swift"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">sil_stage raw</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> Builtin</span><br><span class="line"><span class="keyword">import</span> Swift</span><br><span class="line"><span class="keyword">import</span> SwiftShims</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">TestClass</span> </span>&#123;</span><br><span class="line">  <span class="function"><span class="keyword">func</span> <span class="title">testFunc</span><span class="params">()</span></span></span><br><span class="line">  <span class="keyword">init</span>()</span><br><span class="line">  <span class="keyword">deinit</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>sil_stage raw 是 SIL 的一个阶段，如果进行 guaranteed transformations 后，就可以生成 canonical 的 SIL</p>
+<p>也可以使用下面的指令生成<br><code>swiftc -emit-sil -Onone test.swift &gt; test.swift.sil</code></p>
+<p>紧接着就是 import 和声明</p>
+<h3 id="调用"><a href="#调用" class="headerlink" title="调用"></a>调用</h3><p>接下来是重头戏，方法的实现和调用</p>
+<figure class="highlight swift"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// main</span></span><br><span class="line">sil @main : $<span class="meta">@convention</span>(<span class="built_in">c</span>) (<span class="type">Int32</span>, <span class="type">UnsafeMutablePointer</span>&lt;<span class="type">Optional</span>&lt;<span class="type">UnsafeMutablePointer</span>&lt;<span class="type">Int8</span>&gt;&gt;&gt;) -&gt; <span class="type">Int32</span> &#123;</span><br><span class="line">bb0(%<span class="number">0</span> : $<span class="type">Int32</span>, %<span class="number">1</span> : $<span class="type">UnsafeMutablePointer</span>&lt;<span class="type">Optional</span>&lt;<span class="type">UnsafeMutablePointer</span>&lt;<span class="type">Int8</span>&gt;&gt;&gt;):</span><br><span class="line">  %<span class="number">2</span> = metatype $@thick <span class="type">TestClass</span>.<span class="type">Type</span>            <span class="comment">// user: %4</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// function_ref TestClass.__allocating_init()</span></span><br><span class="line">  %<span class="number">3</span> = function_ref @$<span class="type">S4test9TestClassCACycfC</span> : $<span class="meta">@convention</span>(method) (@thick <span class="type">TestClass</span>.<span class="type">Type</span>) -&gt; @owned <span class="type">TestClass</span> <span class="comment">// user: %4</span></span><br><span class="line">  %<span class="number">4</span> = apply %<span class="number">3</span>(%<span class="number">2</span>) : $<span class="meta">@convention</span>(method) (@thick <span class="type">TestClass</span>.<span class="type">Type</span>) -&gt; @owned <span class="type">TestClass</span> <span class="comment">// users: %7, %6, %5</span></span><br><span class="line"></span><br><span class="line">  %<span class="number">5</span> = class_method %<span class="number">4</span> : $<span class="type">TestClass</span>, #<span class="type">TestClass</span>.testFunc!<span class="number">1</span> : (<span class="type">TestClass</span>) -&gt; () -&gt; (), $<span class="meta">@convention</span>(method) (@guaranteed <span class="type">TestClass</span>) -&gt; () <span class="comment">// user: %6</span></span><br><span class="line">  %<span class="number">6</span> = apply %<span class="number">5</span>(%<span class="number">4</span>) : $<span class="meta">@convention</span>(method) (@guaranteed <span class="type">TestClass</span>) -&gt; ()</span><br><span class="line">  destroy_value %<span class="number">4</span> : $<span class="type">TestClass</span>                   <span class="comment">// id: %7</span></span><br><span class="line"></span><br><span class="line">  %<span class="number">8</span> = integer_literal $<span class="type">Builtin</span>.<span class="type">Int32</span>, <span class="number">0</span>          <span class="comment">// user: %9</span></span><br><span class="line">  %<span class="number">9</span> = <span class="class"><span class="keyword">struct</span> <span class="title">$Int32</span> (%8 : <span class="title">$Builtin</span>.<span class="title">Int32</span>)        // <span class="title">user</span>: %10</span></span><br><span class="line"><span class="class">  <span class="title">return</span> %9 : <span class="title">$Int32</span>                              // <span class="title">id</span>: %10</span></span><br><span class="line"><span class="class">&#125; // <span class="title">end</span> <span class="title">sil</span> <span class="title">function</span> '<span class="title">main</span>'</span></span><br></pre></td></tr></table></figure>
+<p>先看 main 函数，可以看出 SIL 语法清晰，结构也不复杂。<br>根据单词我们也大概可以猜出他的作用。</p>
+<p>metatype 获得类型<br>function_ref 获得函数地址的引用<br>apply 调用函数<br>destroy_value 清理内存</p>
+<p>如果你想知道具体命令具体是如何工作的，可以看看：<a href="https://github.com/apple/swift/blob/master/docs/SIL.rst" target="_blank" rel="noopener">https://github.com/apple/swift/blob/master/docs/SIL.rst</a></p>
+<p>上面分成五段<br>第一段声明函数，拿到 metatype，把类型赋值给 %2<br>第二段调用 init 函数<br>第三段调用 testFunc 函数<br>第四段销毁不需要的变量<br>第五段 return</p>
+<p>每个表达式右侧都有 // user: %7, %6, %5 或者 // id: %7 其实是定位注释<br>// user: %7 说明改赋值句的结果，会被 id 是 7 的表达式用到，赋值语句都会注释使用者是谁<br>// id: %7 说明这句的 id 就是 7，非赋值语句都会标注 id 是什么<br>没有标注 id 的怎么办？找到最近的一个 id，往上往下数就好啦，一行语句 id 增加 1。</p>
+<p>其中我们之前提到过 class 中实例方法都会用 vtable 调用，vtable 调用的特点就是通过 class_method 拿到函数引用，然后交由 apply 调用。</p>
+<p>SIL 文件底部就是我们一直提到的 vtable<br><figure class="highlight swift"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">sil_vtable <span class="type">TestClass</span> &#123;</span><br><span class="line">  \#<span class="type">TestClass</span>.testFunc!<span class="number">1</span>: (<span class="type">TestClass</span>) -&gt; () -&gt; () : @$<span class="type">S4test9TestClassC0A4FuncyyF</span>    <span class="comment">// TestClass.testFunc()</span></span><br><span class="line">  \#<span class="type">TestClass</span>.<span class="keyword">init</span>!initializer.<span class="number">1</span>: (<span class="type">TestClass</span>.<span class="type">Type</span>) -&gt; () -&gt; <span class="type">TestClass</span> : @$<span class="type">S4test9TestClassCACycfc</span>    <span class="comment">// TestClass.init()</span></span><br><span class="line">  \#<span class="type">TestClass</span>.<span class="keyword">deinit</span>!deallocator: @$<span class="type">S4test9TestClassCfD</span>    <span class="comment">// TestClass.__deallocating_deinit</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><code>@$S4test9TestClassC0A4FuncyyF</code> 表示这个方法的类型是：<code>test.TestClass.testFunc() -&gt; ()</code><br>这个技术叫做 Name demangle 后面我们会讲到。</p>
+<h3 id="Protocol-的调用"><a href="#Protocol-的调用" class="headerlink" title="Protocol 的调用"></a>Protocol 的调用</h3><p>同样的，我们也可以看看 protocol 的 witness 是什么样的<br>有 protocol</p>
+<figure class="highlight swift"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">protocol</span> <span class="title">aProtocol</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">func</span> <span class="title">testFunc</span><span class="params">()</span></span></span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// extension aProtocol &#123;</span></span><br><span class="line"><span class="comment">//     func testFunc() &#123;&#125;</span></span><br><span class="line"><span class="comment">// &#125;</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">aStruct</span>: <span class="title">aProtocol</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">func</span> <span class="title">testFunc</span><span class="params">()</span></span> &#123;&#125; <span class="comment">// override defualt implementation</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// let ins = aStruct()</span></span><br><span class="line"><span class="comment">// ins.testFunc()</span></span><br><span class="line"><span class="keyword">let</span> proto: aProtocol = aStruct()</span><br><span class="line">proto.testFunc()</span><br></pre></td></tr></table></figure>
+<p>可以得到<br><figure class="highlight swift"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 1==========</span></span><br><span class="line"><span class="comment">// main</span></span><br><span class="line">%<span class="number">10</span> = witness_method $@opened(<span class="string">"7EA915EE-3F22-11E9-9F70-784F4386410B"</span>) aProtocol, #aProtocol.testFunc!<span class="number">1</span> : &lt;<span class="type">Self</span> <span class="keyword">where</span> <span class="type">Self</span> : aProtocol&gt; (<span class="type">Self</span>) -&gt; () -&gt; (), %<span class="number">9</span> : $*@opened(<span class="string">"7EA915EE-3F22-11E9-9F70-784F4386410B"</span>) aProtocol : $<span class="meta">@convention</span>(witness_method: aProtocol) &lt;τ<span class="number">_0_0</span> <span class="keyword">where</span> τ<span class="number">_0_0</span> : aProtocol&gt; (@in_guaranteed τ<span class="number">_0_0</span>) -&gt; () <span class="comment">// type-defs: %9; user: %11</span></span><br><span class="line">  %<span class="number">11</span> = apply %<span class="number">10</span>&lt;@opened(<span class="string">"7EA915EE-3F22-11E9-9F70-784F4386410B"</span>) aProtocol&gt;(%<span class="number">9</span>) : $<span class="meta">@convention</span>(witness_method: aProtocol) &lt;τ<span class="number">_0_0</span> <span class="keyword">where</span> τ<span class="number">_0_0</span> : aProtocol&gt; (@in_guaranteed τ<span class="number">_0_0</span>) -&gt; () <span class="comment">// type-defs: %9</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">// 2==========</span></span><br><span class="line"><span class="comment">// protocol witness for aProtocol.testFunc() in conformance aStruct</span></span><br><span class="line">sil <span class="keyword">private</span> [transparent] [thunk] @$<span class="type">S4test7aStructCAA9aProtocolA2aDP0A4FuncyyFTW</span> : $<span class="meta">@convention</span>(witness_method: aProtocol) (@in_guaranteed aStruct) -&gt; () &#123;</span><br><span class="line"><span class="comment">// %0                                             // users: %5, %1</span></span><br><span class="line">bb0(%<span class="number">0</span> : $*aStruct):</span><br><span class="line">  %<span class="number">1</span> = load_borrow %<span class="number">0</span> : $*aStruct                 <span class="comment">// users: %5, %3, %2</span></span><br><span class="line">  %<span class="number">2</span> = class_method %<span class="number">1</span> : $aStruct, #aStruct.testFunc!<span class="number">1</span> : (aStruct) -&gt; () -&gt; (), $<span class="meta">@convention</span>(method) (@guaranteed aStruct) -&gt; () <span class="comment">// user: %3</span></span><br><span class="line">  %<span class="number">3</span> = apply %<span class="number">2</span>(%<span class="number">1</span>) : $<span class="meta">@convention</span>(method) (@guaranteed aStruct) -&gt; ()</span><br><span class="line">  %<span class="number">4</span> = tuple ()                                   <span class="comment">// user: %6</span></span><br><span class="line">  end_borrow %<span class="number">1</span> from %<span class="number">0</span> : $aStruct, $*aStruct     <span class="comment">// id: %5</span></span><br><span class="line">  <span class="keyword">return</span> %<span class="number">4</span> : $()                                 <span class="comment">// id: %6</span></span><br><span class="line">&#125; <span class="comment">// end sil function '$S4test7aStructCAA9aProtocolA2aDP0A4FuncyyFTW'</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">// 3==========</span></span><br><span class="line">sil_vtable aStruct &#123;</span><br><span class="line">  \#aStruct.testFunc!<span class="number">1</span>: (aStruct) -&gt; () -&gt; () : @$<span class="type">S4test7aStructC0A4FuncyyF</span>    <span class="comment">// aStruct.testFunc()</span></span><br><span class="line">  \#aStruct.<span class="keyword">init</span>!initializer.<span class="number">1</span>: (aStruct.<span class="type">Type</span>) -&gt; () -&gt; aStruct : @$<span class="type">S4test7aStructCACycfc</span>    <span class="comment">// aStruct.init()</span></span><br><span class="line">  \#aStruct.<span class="keyword">deinit</span>!deallocator: @$<span class="type">S4test7aStructCfD</span>    <span class="comment">// aStruct.__deallocating_deinit</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">// 4==========</span></span><br><span class="line">sil_witness_table hidden aStruct: aProtocol module test &#123;</span><br><span class="line">  method #aProtocol.testFunc!<span class="number">1</span>: &lt;<span class="type">Self</span> <span class="keyword">where</span> <span class="type">Self</span> : aProtocol&gt; (<span class="type">Self</span>) -&gt; () -&gt; () : @$<span class="type">S4test7aStructCAA9aProtocolA2aDP0A4FuncyyFTW</span>    <span class="comment">// protocol witness for aProtocol.testFunc() in conformance aStruct</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p><code>//1</code> 在 main 中通过 <code>witness_method</code> 拿到了一个函数指针，然后直接进行 apply<br>继续往下看，根据我们以往的只是 witness_method 是通过查表得到的函数地址<br><code>//4</code> 文件底部就是我们要找的 sil_witness_table 在后面的注释有一个 demangle 的函数签名<br><code>//2</code> 通过字符串搜索，我们可以找到 witness 的函数实现<br><code>//3</code> 他在内部进行了 <code>class_method</code> 查找和调用，最终指向 sil_vtable 中的方法</p>
+<p>通过这个我们可以很清楚的看到 witness table 做的不是一个引用，而是指向一个 witness 调用函数。这个函数内部只做了一件事，就是调用真正实现协议的方法。</p>
+<p>从 SIL 的角度来说，使用协议调用的性能成本还是很明显的。多一次查表，多一次调用。</p>
+<blockquote>
+<p>根据注释我们还可以得出：witness 函数会针对每个实现了协议的对象都生成一份映射<br>感兴趣的话，可以找找看 SIL 文件中是不是有我们猜想的证据。</p>
+</blockquote>
+<h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>总的来说，SIL 不像 IR 或者汇编一样逻辑复杂或是晦涩难懂。基于你对 Swift 的认知可以很轻松的读懂 SIL，并借此来帮助你分析一些程序中一些被隐藏的细节。</p>
+<p>想更多的了解 SIL，不妨去读一下官方文档吧</p>
+<p><a href="https://github.com/apple/swift/blob/master/docs/SIL.rst#vtables" target="_blank" rel="noopener">https://github.com/apple/swift/blob/master/docs/SIL.rst</a></p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/02/11/swiftMethodDispatchBrief/" rel="next" title="Swift 底层是怎么调度方法的">
+                <i class="fa fa-chevron-left"></i> Swift 底层是怎么调度方法的
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            Table of Contents
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            Overview
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">Gpake</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">9</span>
+                    <span class="site-state-item-name">posts</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">4</span>
+                    <span class="site-state-item-name">categories</span>
+                  
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  
+                    
+                    
+                      
+                    
+                    <span class="site-state-item-count">1</span>
+                    <span class="site-state-item-name">tags</span>
+                  
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Swift-Intermediate-Language-SIL"><span class="nav-number">1.</span> <span class="nav-text">Swift Intermediate Language (SIL)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#例子"><span class="nav-number">1.1.</span> <span class="nav-text">例子</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#例子解析"><span class="nav-number">1.2.</span> <span class="nav-text">例子解析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#头部声明"><span class="nav-number">1.2.1.</span> <span class="nav-text">头部声明</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#调用"><span class="nav-number">1.2.2.</span> <span class="nav-text">调用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Protocol-的调用"><span class="nav-number">1.2.3.</span> <span class="nav-text">Protocol 的调用</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#结语"><span class="nav-number">1.3.</span> <span class="nav-text">结语</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright"> &copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Gpake</span>
+
+  
+
+  
+</div>
+
+
+
+
+  <div class="powered-by">Powered by <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a></div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">Theme – <a class="theme-link" target="_blank" href="https://theme-next.org">NexT.Mist</a></div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+	
+    
+
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.4.2"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.4.2"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.4.2"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.4.2"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.4.2"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url);
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
